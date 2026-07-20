@@ -1,0 +1,65 @@
+{
+  "users": {
+    "1179804729254105210": {
+      "id": "1179804729254105210",
+      "username": "notspayy",
+      "discriminator": "0",
+      "avatar": "3af8fd18bd984111e39b6c07ec8682c8"
+    }
+  },
+  "bots": {
+    "afafc084-2466-4005-bbaf-acbbc3bcf65f": {
+      "id": "afafc084-2466-4005-bbaf-acbbc3bcf65f",
+      "ownerId": "1179804729254105210",
+      "name": "bot1528609393149476975",
+      "discordBotId": "1528609393149476975",
+      "avatarInitials": "BO",
+      "color": "#5865F2",
+      "tokenEncrypted": "9GjbdurbPXQwvK5pTnwj1hMxdfeTleiNcEbvvBA0uuigpTkgBKToi5qEmy1FSPvJYDCUCkwKT6Bmjd9PKz52dT2d4D6yUlWAC+C5hOtUcdUviGQc519lStB/jph3rlkEmK5//Q==",
+      "createdAt": 1784519727664,
+      "modules": {
+        "help": {
+          "enabled": true
+        },
+        "welcome": {
+          "enabled": true,
+          "channelId": "1526330444990251179",
+          "message": "Welkom {user} op de server! 🎉"
+        },
+        "tickets": {
+          "enabled": true,
+          "channelId": null,
+          "categories": [
+            "joi"
+          ],
+          "panelTitle": "Support & Vragen",
+          "panelDescription": "test"
+        },
+        "giveaway": {
+          "enabled": true
+        },
+        "polls": {
+          "enabled": true
+        },
+        "moderation": {
+          "enabled": true
+        },
+        "utility": {
+          "enabled": false
+        },
+        "reload": {
+          "enabled": true
+        }
+      },
+      "staffGuildId": "1524157332395786300",
+      "staffRoleIds": [
+        "1526097091556802601"
+      ],
+      "logGuildId": "1524157332395786300",
+      "logChannelId": "1526081006602289286"
+    }
+  },
+  "commands": {
+    "afafc084-2466-4005-bbaf-acbbc3bcf65f": []
+  }
+}

@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beheren — Notspayy's Hosting</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="bg-texture"></div>
+<nav class="topnav">
+  <div class="brand">
+    <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="12" r="1.6" fill="#fff"/></svg><div class="brand-dot"></div></div>
+    Notspayy's Hosting
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="user-chip"><div class="avatar" id="chipAvatar" style="background:#5865F2;">?</div><span id="chipName">…</span></div>
+    <button class="logout-btn" onclick="logout()">Uitloggen</button>
+  </div>
+</nav>
+
+<div class="dash">
+  <aside class="sidebar">
+    <div class="side-section">
+      <div class="side-label">Menu</div>
+      <button class="side-btn" onclick="location.href='/dashboard.html'">Mijn bots</button>
+      <button class="side-btn active">Beheren</button>
+    </div>
+    <div class="side-section">
+      <div class="side-label">Kies bot</div>
+      <div id="botSelector"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-head">
+      <div><h1 id="pageTitle">Beheren</h1><p>Commands, modules, staff-rollen en logs — allemaal via de website.</p></div>
+    </div>
+
+    <div id="noBotState" class="empty-state" style="display:none;">
+      Je hebt nog geen bot toegevoegd. Ga naar <a href="/dashboard.html" style="color:var(--signal);">Mijn bots</a> om er een toe te voegen.
+    </div>
+
+    <div id="managerArea" style="display:none;">
+      <div class="page-tabs">
+        <button class="page-tab active" data-tab="commands" onclick="setPageTab('commands')">Commands</button>
+        <button class="page-tab" data-tab="modules" onclick="setPageTab('modules')">Modules</button>
+        <button class="page-tab" data-tab="staff" onclick="setPageTab('staff')">Staff &amp; Toegang</button>
+        <button class="page-tab" data-tab="logs" onclick="setPageTab('logs')">Logs</button>
+        <button class="page-tab" data-tab="profile" onclick="setPageTab('profile')">Bot-profiel</button>
+      </div>
+
+      <!-- ===================== TAB: COMMANDS ===================== -->
+      <div class="tab-panel active" id="tab-commands">
+        <div class="cmd-list" id="cmdList"></div>
+
+        <div class="builder-panel">
+          <h3 id="builderTitle">Nieuw command toevoegen</h3>
+          <div class="mode-tabs">
+            <button class="mode-tab active" id="tabSimple" onclick="setCmdMode('simple')">Simpele reactie</button>
+            <button class="mode-tab" id="tabCode" onclick="setCmdMode('code')">Eigen code</button>
+          </div>
+          <div class="grid-2">
+            <div class="field"><label>Command naam</label><input type="text" id="cmdName" placeholder="regels"><div class="hint">Alleen de naam — geen / nodig, dat regelt de bot zelf.</div></div>
+            <div class="field"><label>Cooldown (seconden)</label><input type="text" id="cmdCooldown" placeholder="0" value="3"></div>
+          </div>
+          <div class="field"><label>Beschrijving</label><input type="text" id="cmdDesc" placeholder="Toont de serverregels"></div>
+          <div class="field" id="simpleResponseField">
+            <label>Reactie</label>
+            <textarea id="cmdResponse" placeholder="Bekijk onze regels in #regels!"></textarea>
+          </div>
+          <div class="field" id="codeResponseField" style="display:none;">
+            <label>Code</label>
+            <div class="code-editor">
+              <div class="ce-head">interaction handler · JavaScript</div>
+              <textarea id="cmdCode" spellcheck="false">interaction.reply({
+  content: "Bekijk onze regels in #regels!"
+});</textarea>
+            </div>
+          </div>
+          <div class="field">
+            <div class="toggle-row"><span>Alleen voor admins</span><button class="switch" id="cmdAdminSwitch" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <p class="error-text" id="cmdError"></p>
+          <div class="inline-form" style="margin-top:0;">
+            <button class="btn-primary" style="width:100%;justify-content:center;" id="cmdSaveBtn" onclick="saveCommand()">Command opslaan</button>
+            <button class="btn-cancel" id="cmdCancelBtn" style="display:none;flex:none;padding:0 18px;border-radius:11px;" onclick="cancelEdit()">Annuleren</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== TAB: MODULES ===================== -->
+      <div class="tab-panel" id="tab-modules">
+
+        <div class="module-card">
+          <div class="module-head">
+            <div class="module-title"><div class="module-emoji">📖</div>
+              <div><div class="module-name">Auto /help</div><div class="module-desc">Genereert automatisch een overzicht van alle commands.</div></div>
+            </div>
+            <button class="switch" id="mod-help" onclick="toggleModule('help')"></button>
+          </div>
+        </div>
+
+        <div class="module-card">
+          <div class="module-head">
+            <div class="module-title"><div class="module-emoji">👋</div>
+              <div><div class="module-name">Welkomstbericht</div><div class="module-desc">Stuurt automatisch een bericht als iemand de server joint.</div></div>
+            </div>
+            <button class="switch" id="mod-welcome" onclick="toggleModule('welcome')"></button>
+          </div>
+          <div class="module-settings" id="settings-welcome">
+            <div class="grid-2">
+              <div class="field"><label>Server</label><select id="welcomeGuild" onchange="onWelcomeGuildChange()"></select></div>
+              <div class="field"><label>Kanaal</label><select id="welcomeChannel"></select></div>
+            </div>
+            <div class="field"><label>Bericht</label><textarea id="welcomeMessage" placeholder="Welkom {user} op {server}! 🎉"></textarea>
+              <div class="hint">Gebruik <code>{user}</code> (vermelding), <code>{username}</code> (naam zonder vermelding), <code>{server}</code> (servernaam) of <code>{membercount}</code> (aantal leden).</div>
+            </div>
+            <button class="small-btn" onclick="saveWelcome()">Welkomstbericht opslaan</button>
+          </div>
+        </div>
+
+        <div class="module-card">
+          <div class="module-head">
+            <div class="module-title"><div class="module-emoji">🎫</div>
+              <div><div class="module-name">Ticket-systeem</div><div class="module-desc">Plaats een paneel met knoppen (zoals bij Rimplee) — elke knop opent een privé-ticket voor die categorie.</div></div>
+            </div>
+            <button class="switch" id="mod-tickets" onclick="toggleModule('tickets')"></button>
+          </div>
+          <div class="module-settings open">
+            <div class="field"><label>Server</label><select id="ticketGuild" onchange="onTicketGuildChange()"></select></div>
+            <div class="field">
+              <label>Titel van het paneel</label>
+              <input type="text" id="ticketPanelTitle" placeholder="Support & Vragen">
+            </div>
+            <div class="field">
+              <label>Omschrijving</label>
+              <textarea id="ticketPanelDesc" placeholder="Heb je een vraag, klacht of wil je solliciteren? Klik op een knop hieronder."></textarea>
+            </div>
+            <div class="field">
+              <label>Categorieën (elke categorie wordt een knop)</label>
+              <div class="hint" style="margin-top:0;margin-bottom:10px;">Kies per categorie in welke Discord-categorie (kanaal-groep) het ticket-kanaal terechtkomt.</div>
+              <div id="ticketCategoryList" class="ticket-cat-rows"></div>
+              <div class="inline-form">
+                <input type="text" id="ticketCategoryInput" placeholder="Bijv. Klachten">
+                <button class="small-btn" onclick="addTicketCategory()" type="button">+ Toevoegen</button>
+              </div>
+            </div>
+            <div class="field"><label>Kanaal om het paneel in te plaatsen</label><select id="ticketChannel"></select></div>
+            <p class="error-text" id="ticketPanelError"></p>
+            <button class="small-btn" onclick="postTicketPanel()">📌 Plaats paneel in kanaal</button>
+          </div>
+        </div>
+
+        <div class="module-card">
+          <div class="module-head">
+            <div class="module-title"><div class="module-emoji">🎉</div>
+              <div><div class="module-name">Giveaways</div><div class="module-desc">/giveaway start een giveaway met een meedoen-knop en automatische winnaars.</div></div>
+            </div>
+            <button class="switch" id="mod-giveaway" onclick="toggleModule('giveaway')"></button>
+          </div>
+        </div>
+
+        <div class="module-card">
+          <div class="module-head">
+            <div class="module-title"><div class="module-emoji">📊</div>
+              <div><div class="module-name">Polls</div><div class="module-desc">/poll maakt een stemming met knoppen en live resultaten.</div></div>
+            </div>
+            <button class="switch" id="mod-polls" onclick="toggleModule('polls')"></button>
+          </div>
+        </div>
+
+        <div class="module-card">
+          <div class="module-head">
+            <div class="module-title"><div class="module-emoji">🛡️</div>
+              <div><div class="module-name">Moderatie-commands</div><div class="module-desc">/ban /kick /timeout /giverole /removerole /allroles — alleen voor staff-rollen.</div></div>
+            </div>
+            <button class="switch" id="mod-moderation" onclick="toggleModule('moderation')"></button>
+          </div>
+        </div>
+
+        <div class="module-card">
+          <div class="module-head">
+            <div class="module-title"><div class="module-emoji">🔄</div>
+              <div><div class="module-name">/reload</div><div class="module-desc">Herstart de bot via Discord zelf. Alleen server-admins.</div></div>
+            </div>
+            <button class="switch" id="mod-reload" onclick="toggleModule('reload')"></button>
+          </div>
+        </div>
+
+        <p class="hint" style="margin-top:8px;">Na het aan/uitzetten van een module: herstart de bot zodat Discord de nieuwe commands registreert.</p>
+      </div>
+
+      <!-- ===================== TAB: STAFF & TOEGANG ===================== -->
+      <div class="tab-panel" id="tab-staff">
+        <div class="builder-panel" style="margin-bottom:20px;">
+          <h3 class="section-title">Staff-rollen</h3>
+          <p class="section-sub">Deze rollen mogen moderatie-commands en tickets beheren.</p>
+          <div class="grid-2">
+            <div class="field"><label>Server</label><select id="staffGuild" onchange="onStaffGuildChange()"></select></div>
+          </div>
+          <div class="field">
+            <label>Rollen</label>
+            <div class="role-picker" id="rolePicker"></div>
+          </div>
+          <button class="small-btn" onclick="saveStaffRoles()">Staff-rollen opslaan</button>
+        </div>
+
+        <div class="builder-panel">
+          <h3 class="section-title">Collaborators</h3>
+          <p class="section-sub">Geef iemand toegang tot dit dashboard via zijn/haar Discord ID (kan bot starten/stoppen, commands en modules beheren — maar niet verwijderen).</p>
+          <div id="collabList"></div>
+          <div class="inline-form">
+            <input type="text" id="collabIdInput" placeholder="Discord ID, bijv. 738294017562934016">
+            <button class="small-btn" onclick="addCollaborator()">Toevoegen</button>
+          </div>
+          <p class="error-text" id="collabError"></p>
+        </div>
+      </div>
+
+      <!-- ===================== TAB: LOGS ===================== -->
+      <div class="tab-panel" id="tab-logs">
+        <div class="builder-panel" style="margin-bottom:20px;">
+          <h3 class="section-title">Logkanaal</h3>
+          <p class="section-sub">Stuurt gebeurtenissen (zoals nieuwe tickets) naar een kanaal op je server.</p>
+          <div class="grid-2">
+            <div class="field"><label>Server</label><select id="logGuild" onchange="onLogGuildChange()"></select></div>
+            <div class="field"><label>Kanaal</label><select id="logChannel"></select></div>
+          </div>
+          <button class="small-btn" onclick="saveLogChannel()">Logkanaal opslaan</button>
+        </div>
+
+        <div class="builder-panel">
+          <h3 class="section-title">Recente activiteit</h3>
+          <p class="section-sub">Live console-output van het bot-proces (ververst elke keer dat je hier komt).</p>
+          <div class="log-box" id="liveLog">—</div>
+        </div>
+      </div>
+      <!-- ===================== TAB: BOT-PROFIEL ===================== -->
+      <div class="tab-panel" id="tab-profile">
+        <div class="builder-panel">
+          <h3 class="section-title">Bot-profiel op Discord</h3>
+          <p class="section-sub">Dit past het echte Discord-profiel van je bot aan — iedereen op elke server ziet dit.</p>
+          <div style="display:flex;gap:18px;align-items:center;margin-bottom:18px;">
+            <div class="avatar" id="profileAvatarPreview" style="width:64px;height:64px;background:#5865F2;font-size:20px;">?</div>
+            <div>
+              <label class="small-btn" style="display:inline-block;cursor:pointer;">
+                Nieuwe avatar kiezen
+                <input type="file" id="profileAvatarInput" accept="image/png,image/jpeg,image/gif" style="display:none;" onchange="onAvatarFileChosen(event)">
+              </label>
+              <div class="hint">Discord staat maar een paar wijzigingen per uur toe.</div>
+            </div>
+          </div>
+          <div class="field"><label>Bot-naam</label><input type="text" id="profileUsername" placeholder="RegelsBot"></div>
+          <div class="field"><label>Bio (About Me)</label><textarea id="profileBio" placeholder="Beschrijf hier wat deze bot doet…"></textarea></div>
+          <p class="error-text" id="profileError"></p>
+          <button class="small-btn" onclick="saveProfile()">Profiel opslaan</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"><span class="tdot"></span><span id="toastMsg">Klaar</span></div>
+
+<script>
+let bots = [];
+let selectedBotId = new URLSearchParams(location.search).get("bot");
+let cmdMode = "simple";
+let editingCommandId = null;
+let currentBotDetail = null;
+let selectedStaffRoles = new Set();
+
+async function api(url, opts) {
+  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Er ging iets mis.");
+  return data;
+}
+
+function avatarUrl(user) {
+  if (user.avatar) return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`;
+  return `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(user.id) >> 22n) % 6}.png`;
+}
+
+async function loadMe(){
+  try {
+    const { user } = await api("/auth/me");
+    document.getElementById("chipName").textContent = user.username;
+    document.getElementById("chipAvatar").innerHTML = `<img src="${avatarUrl(user)}" alt="">`;
+  } catch { location.href = "/"; }
+}
+
+/* ---------------- page tabs ---------------- */
+function setPageTab(name){
+  document.querySelectorAll(".page-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === "tab-" + name));
+  if (name === "modules") loadModuleSettingsData();
+  if (name === "staff") loadStaffTabData();
+  if (name === "logs") loadLogsTabData();
+  if (name === "profile") loadProfileTabData();
+}
+
+/* ---------------- bot selector ---------------- */
+async function loadBots(){
+  const data = await api("/api/bots");
+  bots = data.bots;
+  if (!selectedBotId && bots.length) selectedBotId = bots[0].id;
+
+  const selector = document.getElementById("botSelector");
+  selector.innerHTML = bots.map(b => `
+    <button class="side-btn ${b.id===selectedBotId ? "active":""}" onclick="selectBot('${b.id}')">${b.name}</button>
+  `).join("");
+
+  if (!bots.length) {
+    document.getElementById("noBotState").style.display = "block";
+    document.getElementById("managerArea").style.display = "none";
+    return;
+  }
+  document.getElementById("noBotState").style.display = "none";
+  document.getElementById("managerArea").style.display = "block";
+  const bot = bots.find(b => b.id === selectedBotId) || bots[0];
+  document.getElementById("pageTitle").textContent = "Beheren — " + bot.name;
+  await loadBotDetail();
+  loadCommands();
+}
+
+function selectBot(id){
+  selectedBotId = id;
+  history.replaceState(null, "", "/commands.html?bot=" + id);
+  loadBots();
+}
+
+async function loadBotDetail(){
+  currentBotDetail = await api(`/api/bots/${selectedBotId}`);
+  Object.entries(currentBotDetail.modules).forEach(([key, val]) => {
+    const el = document.getElementById("mod-" + key);
+    if (el) el.classList.toggle("on", !!val.enabled);
+  });
+  document.getElementById("settings-welcome").classList.toggle("open", !!currentBotDetail.modules.welcome?.enabled);
+  document.getElementById("welcomeMessage").value = currentBotDetail.modules.welcome?.message || "Welkom {user} op {server}! 🎉";
+}
+
+/* ---------------- COMMANDS TAB ---------------- */
+async function loadCommands(){
+  const { commands } = await api(`/api/bots/${selectedBotId}/commands`);
+  const list = document.getElementById("cmdList");
+  list.innerHTML = commands.length ? commands.map(c => `
+    <div class="cmd-card">
+      <div class="cmd-left">
+        <span class="cmd-slash">/${c.name}</span>
+        <span class="cmd-desc">${c.description || ""}</span>
+      </div>
+      <div class="cmd-meta">
+        <span class="pill">cooldown ${c.cooldown}s</span>
+        ${c.adminOnly ? '<span class="pill admin">alleen admins</span>' : ''}
+        ${c.code ? '<span class="pill code">eigen code</span>' : ''}
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="cmd-remove" onclick='editCommand(${JSON.stringify(c).replace(/'/g,"&apos;")})'>Bewerken</button>
+        <button class="cmd-remove" onclick="removeCommand('${c.id}')">Verwijderen</button>
+      </div>
+    </div>`).join("") : `<div class="empty-state">Nog geen commands. Voeg er hieronder een toe.</div>`;
+}
+
+function editCommand(c){
+  editingCommandId = c.id;
+  document.getElementById("builderTitle").textContent = "Command bewerken: /" + c.name;
+  document.getElementById("cmdName").value = c.name;
+  document.getElementById("cmdDesc").value = c.description || "";
+  document.getElementById("cmdCooldown").value = c.cooldown || 0;
+  document.getElementById("cmdAdminSwitch").classList.toggle("on", !!c.adminOnly);
+  setCmdMode(c.code ? "code" : "simple");
+  if (c.code) document.getElementById("cmdCode").value = c.code;
+  else document.getElementById("cmdResponse").value = c.response || "";
+  document.getElementById("cmdSaveBtn").textContent = "Wijzigingen opslaan";
+  document.getElementById("cmdCancelBtn").style.display = "block";
+  document.getElementById("tab-commands").scrollIntoView({ behavior: "smooth" });
+}
+function cancelEdit(){
+  editingCommandId = null;
+  document.getElementById("builderTitle").textContent = "Nieuw command toevoegen";
+  document.getElementById("cmdName").value = "";
+  document.getElementById("cmdDesc").value = "";
+  document.getElementById("cmdResponse").value = "";
+  document.getElementById("cmdCooldown").value = 3;
+  document.getElementById("cmdAdminSwitch").classList.remove("on");
+  document.getElementById("cmdSaveBtn").textContent = "Command opslaan";
+  document.getElementById("cmdCancelBtn").style.display = "none";
+}
+
+async function removeCommand(id){
+  await api(`/api/bots/${selectedBotId}/commands/${id}`, { method: "DELETE" });
+  showToast("Command verwijderd");
+  loadCommands();
+}
+
+function setCmdMode(mode){
+  cmdMode = mode;
+  document.getElementById("tabSimple").classList.toggle("active", mode==="simple");
+  document.getElementById("tabCode").classList.toggle("active", mode==="code");
+  document.getElementById("simpleResponseField").style.display = mode==="simple" ? "block":"none";
+  document.getElementById("codeResponseField").style.display = mode==="code" ? "block":"none";
+}
+
+async function saveCommand(){
+  const name = document.getElementById("cmdName").value.trim();
+  const description = document.getElementById("cmdDesc").value.trim();
+  const cooldown = document.getElementById("cmdCooldown").value.trim();
+  const adminOnly = document.getElementById("cmdAdminSwitch").classList.contains("on");
+  const body = { name, description, cooldown, adminOnly };
+  if (cmdMode === "simple") body.response = document.getElementById("cmdResponse").value.trim();
+  else body.code = document.getElementById("cmdCode").value;
+
+  try {
+    if (editingCommandId) {
+      await api(`/api/bots/${selectedBotId}/commands/${editingCommandId}`, { method: "PUT", body: JSON.stringify(body) });
+      showToast(name + " bijgewerkt — herstart de bot om het te zien.");
+    } else {
+      await api(`/api/bots/${selectedBotId}/commands`, { method: "POST", body: JSON.stringify(body) });
+      showToast(name + " opgeslagen — herstart de bot om het te zien.");
+    }
+    document.getElementById("cmdError").textContent = "";
+    cancelEdit();
+    loadCommands();
+  } catch (err) {
+    document.getElementById("cmdError").textContent = err.message;
+  }
+}
+
+/* ---------------- MODULES TAB ---------------- */
+async function toggleModule(key){
+  const el = document.getElementById("mod-" + key);
+  el.classList.toggle("on");
+  if (key === "welcome") document.getElementById("settings-welcome").classList.toggle("open", el.classList.contains("on"));
+  const enabled = el.classList.contains("on");
+  try {
+    await api(`/api/bots/${selectedBotId}/modules`, { method: "POST", body: JSON.stringify({ [key]: { ...(currentBotDetail.modules[key]||{}), enabled } }) });
+    currentBotDetail.modules[key] = { ...(currentBotDetail.modules[key]||{}), enabled };
+    showToast(`${key} ${enabled ? "ingeschakeld" : "uitgeschakeld"} — herstart de bot om het door te voeren.`);
+  } catch (err) { showToast(err.message); }
+}
+
+let guildsCache = null;
+async function loadModuleSettingsData(){
+  if (!guildsCache) {
+    try { guildsCache = (await api(`/api/bots/${selectedBotId}/guilds`)).guilds; }
+    catch (err) { showToast(err.message, "error"); guildsCache = []; }
+  }
+  const sel = document.getElementById("welcomeGuild");
+  sel.innerHTML = guildsCache.map(g => `<option value="${g.id}" ${g.id===currentBotDetail.modules.welcome.guildId?"selected":""}>${g.name}</option>`).join("");
+  if (guildsCache.length) onWelcomeGuildChange();
+
+  document.getElementById("ticketPanelTitle").value = currentBotDetail.modules.tickets.panelTitle || "Support & Vragen";
+  document.getElementById("ticketPanelDesc").value = currentBotDetail.modules.tickets.panelDescription || "";
+  ticketCategories = (currentBotDetail.modules.tickets.categories || []).map(c => typeof c === "string" ? { label: c, parentId: null } : { ...c });
+  const tSel = document.getElementById("ticketGuild");
+  tSel.innerHTML = guildsCache.map(g => `<option value="${g.id}">${g.name}</option>`).join("");
+  if (guildsCache.length) onTicketGuildChange();
+  else renderTicketCategories();
+}
+
+let ticketCategories = [];
+let ticketDiscordCategories = []; // Discord-categorieën (kanaal-groepen) van de gekozen server
+function renderTicketCategories(){
+  const el = document.getElementById("ticketCategoryList");
+  el.innerHTML = ticketCategories.length ? ticketCategories.map((c, i) => `
+    <div class="ticket-cat-row">
+      <span class="cat-label">${c.label}</span>
+      <select onchange="setTicketCategoryParent(${i}, this.value)">
+        <option value="">Geen (bovenaan de kanalenlijst)</option>
+        ${ticketDiscordCategories.map(dc => `<option value="${dc.id}" ${dc.id===c.parentId?"selected":""}>${dc.name}</option>`).join("")}
+      </select>
+      <button onclick="removeTicketCategory(${i})" type="button">✕</button>
+    </div>
+  `).join("") : `<span style="color:var(--fog-dim);font-size:12px;">Nog geen categorieën toegevoegd.</span>`;
+}
+function setTicketCategoryParent(i, parentId){
+  ticketCategories[i].parentId = parentId || null;
+}
+function addTicketCategory(){
+  const input = document.getElementById("ticketCategoryInput");
+  const val = input.value.trim();
+  if (!val) return;
+  if (ticketCategories.length >= 10) { showToast("Maximaal 10 categorieën.", "error"); return; }
+  ticketCategories.push({ label: val, parentId: null });
+  input.value = "";
+  renderTicketCategories();
+}
+function removeTicketCategory(i){
+  ticketCategories.splice(i, 1);
+  renderTicketCategories();
+}
+async function onTicketGuildChange(){
+  const guildId = document.getElementById("ticketGuild").value;
+  if (!guildId) return;
+  try {
+    const [{ channels }, { categories }] = await Promise.all([
+      api(`/api/bots/${selectedBotId}/guilds/${guildId}/channels`),
+      api(`/api/bots/${selectedBotId}/guilds/${guildId}/categories`),
+    ]);
+    document.getElementById("ticketChannel").innerHTML = channels.map(c => `<option value="${c.id}">#${c.name}</option>`).join("");
+    ticketDiscordCategories = categories;
+    renderTicketCategories();
+  } catch (err) { showToast(err.message, "error"); }
+}
+async function postTicketPanel(){
+  const channelId = document.getElementById("ticketChannel").value;
+  const title = document.getElementById("ticketPanelTitle").value.trim();
+  const description = document.getElementById("ticketPanelDesc").value.trim();
+  try {
+    await api(`/api/bots/${selectedBotId}/ticket-panel`, { method: "POST", body: JSON.stringify({ channelId, title, description, categories: ticketCategories }) });
+    document.getElementById("ticketPanelError").textContent = "";
+    document.getElementById("mod-tickets").classList.add("on");
+    showToast("Ticket-paneel geplaatst! Bekijk het kanaal in Discord.", "success");
+  } catch (err) {
+    document.getElementById("ticketPanelError").textContent = err.message;
+  }
+}
+async function onWelcomeGuildChange(){
+  const guildId = document.getElementById("welcomeGuild").value;
+  if (!guildId) return;
+  try {
+    const { channels } = await api(`/api/bots/${selectedBotId}/guilds/${guildId}/channels`);
+    const sel = document.getElementById("welcomeChannel");
+    const savedChannelId = currentBotDetail.modules.welcome.channelId;
+    sel.innerHTML = channels.map(c => `<option value="${c.id}" ${c.id===savedChannelId?"selected":""}>#${c.name}</option>`).join("");
+  } catch (err) { showToast(err.message); }
+}
+async function saveWelcome(){
+  const guildId = document.getElementById("welcomeGuild").value;
+  const channelId = document.getElementById("welcomeChannel").value;
+  const message = document.getElementById("welcomeMessage").value.trim();
+  try {
+    await api(`/api/bots/${selectedBotId}/modules`, { method: "POST", body: JSON.stringify({ welcome: { enabled: true, guildId, channelId, message } }) });
+    currentBotDetail.modules.welcome = { enabled: true, guildId, channelId, message };
+    document.getElementById("mod-welcome").classList.add("on");
+    showToast("Welkomstbericht opgeslagen.");
+  } catch (err) { showToast(err.message); }
+}
+
+/* ---------------- STAFF & TOEGANG TAB ---------------- */
+async function loadStaffTabData(){
+  if (!guildsCache) {
+    try { guildsCache = (await api(`/api/bots/${selectedBotId}/guilds`)).guilds; }
+    catch (err) { showToast(err.message); guildsCache = []; }
+  }
+  const sel = document.getElementById("staffGuild");
+  sel.innerHTML = guildsCache.map(g => `<option value="${g.id}" ${g.id===currentBotDetail.staffGuildId?"selected":""}>${g.name}</option>`).join("");
+  selectedStaffRoles = new Set(currentBotDetail.staffRoleIds || []);
+  if (guildsCache.length) onStaffGuildChange();
+  loadCollaborators();
+}
+async function onStaffGuildChange(){
+  const guildId = document.getElementById("staffGuild").value;
+  if (!guildId) return;
+  try {
+    const { roles } = await api(`/api/bots/${selectedBotId}/guilds/${guildId}/roles`);
+    const picker = document.getElementById("rolePicker");
+    picker.innerHTML = roles.map(r => `
+      <div class="role-option ${selectedStaffRoles.has(r.id) ? "selected":""}" data-role="${r.id}" onclick="toggleRoleOption(this,'${r.id}')">${r.name}</div>
+    `).join("") || `<span style="color:var(--fog-dim);font-size:12.5px;">Geen rollen gevonden op deze server.</span>`;
+  } catch (err) { showToast(err.message); }
+}
+function toggleRoleOption(el, roleId){
+  el.classList.toggle("selected");
+  if (selectedStaffRoles.has(roleId)) selectedStaffRoles.delete(roleId);
+  else selectedStaffRoles.add(roleId);
+}
+async function saveStaffRoles(){
+  const guildId = document.getElementById("staffGuild").value;
+  try {
+    await api(`/api/bots/${selectedBotId}/staff-roles`, { method: "POST", body: JSON.stringify({ guildId, roleIds: [...selectedStaffRoles] }) });
+    showToast("Staff-rollen opgeslagen.");
+  } catch (err) { showToast(err.message); }
+}
+
+async function loadCollaborators(){
+  try {
+    const { collaborators, ownerId } = await api(`/api/bots/${selectedBotId}/collaborators`);
+    const list = document.getElementById("collabList");
+    list.innerHTML = collaborators.length ? collaborators.map(id => `
+      <div class="collab-row">
+        <div class="collab-left">👤 <span style="font-family:var(--font-mono);">${id}</span></div>
+        <button class="cmd-remove" onclick="removeCollaborator('${id}')">Verwijderen</button>
+      </div>
+    `).join("") : `<p style="color:var(--fog-dim);font-size:12.5px;">Nog geen collaborators toegevoegd.</p>`;
+  } catch (err) { showToast(err.message); }
+}
+async function addCollaborator(){
+  const userId = document.getElementById("collabIdInput").value.trim();
+  try {
+    const { user } = await api(`/api/bots/${selectedBotId}/collaborators`, { method: "POST", body: JSON.stringify({ userId }) });
+    document.getElementById("collabError").textContent = "";
+    document.getElementById("collabIdInput").value = "";
+    showToast(`${user.username} heeft nu toegang tot deze bot.`);
+    loadCollaborators();
+  } catch (err) {
+    document.getElementById("collabError").textContent = err.message;
+  }
+}
+async function removeCollaborator(id){
+  await api(`/api/bots/${selectedBotId}/collaborators/${id}`, { method: "DELETE" });
+  showToast("Toegang ingetrokken.");
+  loadCollaborators();
+}
+
+/* ---------------- LOGS TAB ---------------- */
+async function loadLogsTabData(){
+  if (!guildsCache) {
+    try { guildsCache = (await api(`/api/bots/${selectedBotId}/guilds`)).guilds; }
+    catch (err) { showToast(err.message); guildsCache = []; }
+  }
+  const sel = document.getElementById("logGuild");
+  sel.innerHTML = guildsCache.map(g => `<option value="${g.id}" ${g.id===currentBotDetail.logGuildId?"selected":""}>${g.name}</option>`).join("");
+  if (guildsCache.length) onLogGuildChange();
+
+  document.getElementById("liveLog").textContent = (currentBotDetail.log && currentBotDetail.log.length)
+    ? currentBotDetail.log.join("\n") : "Nog geen activiteit sinds de laatste start.";
+}
+async function onLogGuildChange(){
+  const guildId = document.getElementById("logGuild").value;
+  if (!guildId) return;
+  try {
+    const { channels } = await api(`/api/bots/${selectedBotId}/guilds/${guildId}/channels`);
+    const sel = document.getElementById("logChannel");
+    sel.innerHTML = channels.map(c => `<option value="${c.id}" ${c.id===currentBotDetail.logChannelId?"selected":""}>#${c.name}</option>`).join("");
+  } catch (err) { showToast(err.message); }
+}
+async function saveLogChannel(){
+  const guildId = document.getElementById("logGuild").value;
+  const channelId = document.getElementById("logChannel").value;
+  try {
+    await api(`/api/bots/${selectedBotId}/log-channel`, { method: "POST", body: JSON.stringify({ guildId, channelId }) });
+    showToast("Logkanaal opgeslagen.");
+  } catch (err) { showToast(err.message); }
+}
+
+/* ---------------- BOT-PROFIEL TAB ---------------- */
+let pendingAvatarDataUri = null;
+async function loadProfileTabData(){
+  pendingAvatarDataUri = null;
+  try {
+    const profile = await api(`/api/bots/${selectedBotId}/profile`);
+    document.getElementById("profileUsername").value = profile.username || "";
+    document.getElementById("profileBio").value = profile.description || "";
+    const preview = document.getElementById("profileAvatarPreview");
+    preview.innerHTML = profile.avatarUrl ? `<img src="${profile.avatarUrl}" alt="">` : (profile.username || "?").slice(0,2).toUpperCase();
+  } catch (err) { showToast(err.message, "error"); }
+}
+function onAvatarFileChosen(event){
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingAvatarDataUri = reader.result;
+    document.getElementById("profileAvatarPreview").innerHTML = `<img src="${pendingAvatarDataUri}" alt="">`;
+  };
+  reader.readAsDataURL(file);
+}
+async function saveProfile(){
+  const username = document.getElementById("profileUsername").value.trim();
+  const description = document.getElementById("profileBio").value.trim();
+  try {
+    await api(`/api/bots/${selectedBotId}/profile`, { method: "POST", body: JSON.stringify({ username, description, avatarDataUri: pendingAvatarDataUri }) });
+    document.getElementById("profileError").textContent = "";
+    pendingAvatarDataUri = null;
+    showToast("Bot-profiel bijgewerkt op Discord.", "success");
+  } catch (err) {
+    document.getElementById("profileError").textContent = err.message;
+  }
+}
+
+async function logout(){ await fetch("/auth/logout", { method: "POST" }); location.href = "/"; }
+
+let toastTimer;
+function showToast(msg, type){
+  const t = document.getElementById("toast");
+  document.getElementById("toastMsg").textContent = msg;
+  t.className = "toast show" + (type ? " toast-" + type : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 3200);
+}
+
+loadMe();
+loadBots();
+</script>
+</body>
+</html>

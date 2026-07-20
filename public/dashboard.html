@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Notspayy's Hosting</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="bg-texture"></div>
+<nav class="topnav">
+  <div class="brand">
+    <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="12" r="1.6" fill="#fff"/></svg><div class="brand-dot"></div></div>
+    Notspayy's Hosting
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="user-chip">
+      <div class="avatar" id="chipAvatar" style="background:#5865F2;">?</div>
+      <span id="chipName">…</span>
+    </div>
+    <button class="logout-btn" onclick="logout()">Uitloggen</button>
+  </div>
+</nav>
+
+<div class="dash">
+  <aside class="sidebar">
+    <div class="profile-card">
+      <div class="profile-top">
+        <div class="avatar" id="sideAvatar" style="background:#5865F2;width:42px;height:42px;font-size:14px;">?</div>
+        <div><div class="profile-name" id="sideName">…</div><div class="profile-tag" id="sideTag"></div></div>
+      </div>
+      <div class="profile-id" id="sideId">ID: …</div>
+    </div>
+    <div class="side-section">
+      <div class="side-label">Menu</div>
+      <button class="side-btn active">Mijn bots</button>
+      <button class="side-btn" onclick="location.href='/commands.html'">Command builder</button>
+    </div>
+    <div class="side-section">
+      <div class="side-label">Jouw servers</div>
+      <div id="guildList"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-head">
+      <div><h1>Mijn bots</h1><p>Beheer, start en stop je Discord bots.</p></div>
+    </div>
+    <div class="bot-grid" id="botGrid"></div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="addBotModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAddBot()">✕</button>
+    <div id="step1">
+      <h2>Bot toevoegen</h2>
+      <p class="sub">Plak je Discord bot-token. We controleren 'm écht bij Discord voordat er iets gebeurt.</p>
+      <div class="field">
+        <label>Bot token</label>
+        <input type="text" id="tokenInput" placeholder="Je bot-token van discord.com/developers/applications">
+        <div class="hint">Te vinden bij je applicatie → Bot → "Reset Token" (of "Copy" als je 'm al hebt). Wordt versleuteld opgeslagen.</div>
+      </div>
+      <p class="error-text" id="verifyError"></p>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeAddBot()">Annuleren</button>
+        <button class="btn-authorize" onclick="verifyToken()">Controleren</button>
+      </div>
+    </div>
+    <div id="step2" style="display:none;">
+      <h2>Token controleren…</h2>
+      <p class="sub">Even geduld, we vragen de botgegevens écht op bij Discord.</p>
+      <div class="verifying"><div class="spinner"></div> Bezig met verifiëren…</div>
+    </div>
+    <div id="step3" style="display:none;">
+      <h2>Bot gevonden</h2>
+      <p class="sub">Klopt dit? Activeer de bot om 'm te starten op Notspayy's Hosting.</p>
+      <div class="verify-result">
+        <div class="bot-avatar" id="verifyAvatar">?</div>
+        <div><div class="vname" id="verifyName">—</div><div class="vid" id="verifyId">—</div></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeAddBot()">Annuleren</button>
+        <button class="btn-authorize" style="background:var(--pulse);color:#0B0E14;" onclick="activateBot()">✅ Activeren</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="tdot"></span><span id="toastMsg">Klaar</span></div>
+
+<script>
+let pendingBot = null;
+let pollTimer = null;
+
+async function api(url, opts) {
+  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Er ging iets mis.");
+  return data;
+}
+
+function avatarUrl(user) {
+  if (user.avatar) return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${user.avatar.startsWith("a_") ? "gif" : "png"}?size=128`;
+  const fallbackIndex = (user.discriminator && user.discriminator !== "0") ? Number(user.discriminator) % 5 : Number(BigInt(user.id) >> 22n) % 6;
+  return `https://cdn.discordapp.com/embed/avatars/${fallbackIndex}.png`;
+}
+
+async function loadMe() {
+  try {
+    const { user, guilds } = await api("/auth/me");
+    document.getElementById("chipName").textContent = user.username;
+    document.getElementById("sideName").textContent = user.username;
+    document.getElementById("sideTag").textContent = "#" + (user.discriminator || "0000");
+    document.getElementById("sideId").textContent = "ID: " + user.id;
+    const url = avatarUrl(user);
+    document.getElementById("chipAvatar").innerHTML = `<img src="${url}" alt="">`;
+    document.getElementById("sideAvatar").innerHTML = `<img src="${url}" alt="">`;
+
+    const guildList = document.getElementById("guildList");
+    guildList.innerHTML = guilds.map(g => `
+      <div class="server-item">
+        <span class="sname"><span class="sinit">${g.name.slice(0,2).toUpperCase()}</span>${g.name}</span>
+        <span class="badge-manage ${g.canManage ? "yes":"no"}">${g.canManage ? "beheer":"alleen lid"}</span>
+      </div>`).join("") || `<p style="color:var(--fog-dim);font-size:12.5px;padding:0 10px;">Geen servers gevonden.</p>`;
+  } catch (err) {
+    location.href = "/";
+  }
+}
+
+const statusMeta = {
+  online:{dot:"on", label:"Online", cls:"st-on"},
+  offline:{dot:"off", label:"Offline", cls:"st-off"},
+  starting:{dot:"starting", label:"Starten…", cls:"st-starting"},
+};
+function fmtUptime(ms){
+  if (!ms) return "—";
+  const s = Math.floor(ms/1000);
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+  return h > 0 ? `${h}u ${m}m` : `${m}m`;
+}
+function fmtRam(bytes){
+  if (!bytes) return "—";
+  return (bytes/1024/1024).toFixed(0) + " MB";
+}
+
+async function loadBots(){
+  const { bots } = await api("/api/bots");
+  const grid = document.getElementById("botGrid");
+  grid.innerHTML = "";
+  bots.forEach(bot => {
+    const m = statusMeta[bot.status] || statusMeta.offline;
+    const card = document.createElement("div");
+    card.className = "bot-card";
+    card.innerHTML = `
+      <div class="bot-card-top">
+        <div class="bot-avatar" style="background:${bot.color}">${bot.avatarInitials}</div>
+        <div>
+          <div class="bot-name">${bot.name}${bot.isOwner ? "" : '<span class="shared-badge">gedeeld</span>'}</div>
+          <div class="status-line"><span class="dot ${m.dot}"></span><span class="${m.cls}">${m.label}</span></div>
+        </div>
+      </div>
+      <div class="bot-stats">
+        <div class="stat"><div class="stat-label">Uptime</div><div class="stat-val">${fmtUptime(bot.uptimeMs)}</div></div>
+        <div class="stat"><div class="stat-label">RAM</div><div class="stat-val">${fmtRam(bot.ramBytes)}</div></div>
+      </div>
+      <div class="bot-actions">
+        <button class="icon-btn" ${bot.status==="online"?"disabled":""} onclick="botAction('${bot.id}','start')">▶ Start</button>
+        <button class="icon-btn" ${bot.status==="offline"?"disabled":""} onclick="botAction('${bot.id}','stop')">⏹ Stop</button>
+        <button class="icon-btn" ${bot.status==="offline"?"disabled":""} onclick="botAction('${bot.id}','restart')">🔄 Herstart</button>
+        <button class="icon-btn manage" onclick="location.href='/commands.html?bot=${bot.id}'">⚙ Beheren</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+  const addCard = document.createElement("button");
+  addCard.className = "add-bot-card";
+  addCard.innerHTML = `<div class="plus">+</div><div>Bot toevoegen</div>`;
+  addCard.onclick = openAddBot;
+  grid.appendChild(addCard);
+}
+
+async function botAction(id, action){
+  try {
+    await api(`/api/bots/${id}/${action}`, { method: "POST" });
+    showToast(`Commando "${action}" verstuurd`);
+    setTimeout(loadBots, 600);
+  } catch (err) { showToast(err.message); }
+}
+
+function openAddBot(){
+  document.getElementById("addBotModal").classList.add("active");
+  document.getElementById("step1").style.display = "block";
+  document.getElementById("step2").style.display = "none";
+  document.getElementById("step3").style.display = "none";
+  document.getElementById("tokenInput").value = "";
+  document.getElementById("verifyError").textContent = "";
+}
+function closeAddBot(){ document.getElementById("addBotModal").classList.remove("active"); }
+
+async function verifyToken(){
+  const token = document.getElementById("tokenInput").value.trim();
+  if (!token) { document.getElementById("verifyError").textContent = "Vul eerst een token in."; return; }
+  document.getElementById("step1").style.display = "none";
+  document.getElementById("step2").style.display = "block";
+  try {
+    const data = await api("/api/bots/verify", { method: "POST", body: JSON.stringify({ token }) });
+    pendingBot = { token, name: data.name, discordBotId: data.discordBotId };
+    document.getElementById("verifyName").textContent = data.name;
+    document.getElementById("verifyId").textContent = "ID: " + data.discordBotId;
+    document.getElementById("verifyAvatar").textContent = data.avatarInitials;
+    document.getElementById("verifyAvatar").style.background = data.color;
+    document.getElementById("step2").style.display = "none";
+    document.getElementById("step3").style.display = "block";
+  } catch (err) {
+    document.getElementById("step2").style.display = "none";
+    document.getElementById("step1").style.display = "block";
+    document.getElementById("verifyError").textContent = err.message;
+  }
+}
+
+async function activateBot(){
+  try {
+    await api("/api/bots/activate", { method: "POST", body: JSON.stringify(pendingBot) });
+    closeAddBot();
+    showToast(pendingBot.name + " toegevoegd — wordt gestart…");
+    loadBots();
+    setTimeout(loadBots, 2000);
+  } catch (err) { showToast(err.message); }
+}
+
+async function logout(){
+  await fetch("/auth/logout", { method: "POST" });
+  location.href = "/";
+}
+
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById("toast");
+  document.getElementById("toastMsg").textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 3000);
+}
+
+loadMe();
+loadBots();
+pollTimer = setInterval(loadBots, 5000);
+</script>
+</body>
+</html>

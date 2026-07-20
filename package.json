@@ -1,0 +1,20 @@
+{
+  "name": "botcloud",
+  "version": "1.0.0",
+  "description": "BotCloud - host en beheer je Discord bots via een dashboard",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-session": "^1.18.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

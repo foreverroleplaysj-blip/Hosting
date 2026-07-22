@@ -58,6 +58,7 @@
           <h3 id="builderTitle">Nieuw command toevoegen</h3>
           <div class="mode-tabs">
             <button class="mode-tab active" id="tabSimple" onclick="setCmdMode('simple')">Simpele reactie</button>
+            <button class="mode-tab" id="tabEmbed" onclick="setCmdMode('embed')">Embed</button>
             <button class="mode-tab" id="tabCode" onclick="setCmdMode('code')">Eigen code</button>
           </div>
           <div class="grid-2">
@@ -68,6 +69,47 @@
           <div class="field" id="simpleResponseField">
             <label>Reactie</label>
             <textarea id="cmdResponse" placeholder="Bekijk onze regels in #regels!"></textarea>
+          </div>
+          <div class="field" id="embedResponseField" style="display:none;">
+            <div class="grid-2">
+              <div class="field"><label>Titel</label><input type="text" id="embedTitle" placeholder="🛒 Forever Roleplay Store"></div>
+              <div class="field"><label>Kleur</label><input type="color" id="embedColor" value="#7c8cf8" style="height:44px;padding:4px;"></div>
+            </div>
+            <div class="field"><label>Omschrijving</label><textarea id="embedDescription" placeholder="Welkom bij de officiële store!"></textarea></div>
+            <div class="grid-2">
+              <div class="field"><label>Afbeelding-URL (groot, onderaan)</label><input type="text" id="embedImage" placeholder="https://…"></div>
+              <div class="field"><label>Thumbnail-URL (klein, rechtsboven)</label><input type="text" id="embedThumbnail" placeholder="https://…"></div>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label>Auteur (kleine tekst bovenaan)</label><input type="text" id="embedAuthor" placeholder="Optioneel"></div>
+              <div class="field"><label>Footer-tekst</label><input type="text" id="embedFooter" placeholder="© Forever Roleplay"></div>
+            </div>
+            <div class="field">
+              <label>Velden (naam + waarde, bijv. een link)</label>
+              <div id="embedFieldsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+              <div class="inline-form">
+                <input type="text" id="embedFieldName" placeholder="Naam, bijv. 🌐 Store" style="flex:1;">
+                <input type="text" id="embedFieldValue" placeholder="Waarde, bijv. https://jouw-store-link.nl" style="flex:2;">
+                <button class="small-btn" type="button" onclick="addEmbedField()">+ Veld</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Extra tekst boven de embed (optioneel)</label>
+              <input type="text" id="embedExtraContent" placeholder="Bijv. @everyone">
+            </div>
+            <div class="field">
+              <label>Of: plak je eigen embed-JSON (overschrijft de velden hierboven als dit is ingevuld)</label>
+              <div class="code-editor">
+                <div class="ce-head">embed · JSON</div>
+                <textarea id="embedRawJson" spellcheck="false" placeholder='{
+  "title": "🛒 Forever Roleplay Store",
+  "description": "Welkom!",
+  "color": "#00ffff",
+  "fields": [{ "name": "🌐 Store", "value": "https://jouw-store-link.nl" }],
+  "footer": { "text": "© Forever Roleplay" }
+}'></textarea>
+              </div>
+            </div>
           </div>
           <div class="field" id="codeResponseField" style="display:none;">
             <label>Code</label>
@@ -355,6 +397,7 @@ async function loadCommands(){
         <span class="pill">cooldown ${c.cooldown}s</span>
         ${c.adminOnly ? '<span class="pill admin">alleen admins</span>' : ''}
         ${c.code ? '<span class="pill code">eigen code</span>' : ''}
+        ${c.embed ? '<span class="pill code">embed</span>' : ''}
       </div>
       <div style="display:flex;gap:8px;">
         <button class="cmd-remove" onclick='editCommand(${JSON.stringify(c).replace(/'/g,"&apos;")})'>Bewerken</button>
@@ -370,9 +413,26 @@ function editCommand(c){
   document.getElementById("cmdDesc").value = c.description || "";
   document.getElementById("cmdCooldown").value = c.cooldown || 0;
   document.getElementById("cmdAdminSwitch").classList.toggle("on", !!c.adminOnly);
-  setCmdMode(c.code ? "code" : "simple");
-  if (c.code) document.getElementById("cmdCode").value = c.code;
-  else document.getElementById("cmdResponse").value = c.response || "";
+  if (c.embed) {
+    setCmdMode("embed");
+    document.getElementById("embedTitle").value = c.embed.title || "";
+    document.getElementById("embedDescription").value = c.embed.description || "";
+    document.getElementById("embedColor").value = /^#[0-9a-f]{6}$/i.test(c.embed.color) ? c.embed.color : "#7c8cf8";
+    document.getElementById("embedImage").value = c.embed.image?.url || "";
+    document.getElementById("embedThumbnail").value = c.embed.thumbnail?.url || "";
+    document.getElementById("embedAuthor").value = c.embed.author?.name || "";
+    document.getElementById("embedFooter").value = c.embed.footer?.text || "";
+    document.getElementById("embedExtraContent").value = c.response || "";
+    document.getElementById("embedRawJson").value = "";
+    embedFields = [...(c.embed.fields || [])];
+    renderEmbedFields();
+  } else if (c.code) {
+    setCmdMode("code");
+    document.getElementById("cmdCode").value = c.code;
+  } else {
+    setCmdMode("simple");
+    document.getElementById("cmdResponse").value = c.response || "";
+  }
   document.getElementById("cmdSaveBtn").textContent = "Wijzigingen opslaan";
   document.getElementById("cmdCancelBtn").style.display = "block";
   document.getElementById("tab-commands").scrollIntoView({ behavior: "smooth" });
@@ -385,22 +445,61 @@ function cancelEdit(){
   document.getElementById("cmdResponse").value = "";
   document.getElementById("cmdCooldown").value = 3;
   document.getElementById("cmdAdminSwitch").classList.remove("on");
+  document.getElementById("embedTitle").value = "";
+  document.getElementById("embedDescription").value = "";
+  document.getElementById("embedColor").value = "#7c8cf8";
+  document.getElementById("embedImage").value = "";
+  document.getElementById("embedThumbnail").value = "";
+  document.getElementById("embedAuthor").value = "";
+  document.getElementById("embedFooter").value = "";
+  document.getElementById("embedExtraContent").value = "";
+  document.getElementById("embedRawJson").value = "";
+  embedFields = [];
+  renderEmbedFields();
   document.getElementById("cmdSaveBtn").textContent = "Command opslaan";
   document.getElementById("cmdCancelBtn").style.display = "none";
 }
 
 async function removeCommand(id){
   await api(`/api/bots/${selectedBotId}/commands/${id}`, { method: "DELETE" });
-  showToast("Command verwijderd");
+  showToast("Command verwijderd", "success");
   loadCommands();
 }
 
 function setCmdMode(mode){
   cmdMode = mode;
   document.getElementById("tabSimple").classList.toggle("active", mode==="simple");
+  document.getElementById("tabEmbed").classList.toggle("active", mode==="embed");
   document.getElementById("tabCode").classList.toggle("active", mode==="code");
   document.getElementById("simpleResponseField").style.display = mode==="simple" ? "block":"none";
+  document.getElementById("embedResponseField").style.display = mode==="embed" ? "block":"none";
   document.getElementById("codeResponseField").style.display = mode==="code" ? "block":"none";
+}
+
+/* ---- embed velden (naam/waarde-paren) ---- */
+let embedFields = [];
+function renderEmbedFields(){
+  const el = document.getElementById("embedFieldsList");
+  el.innerHTML = embedFields.length ? embedFields.map((f, i) => `
+    <div class="ticket-cat-row">
+      <span class="cat-label" style="min-width:auto;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}: ${f.value}</span>
+      <button onclick="removeEmbedField(${i})" type="button">✕</button>
+    </div>
+  `).join("") : `<span style="color:var(--fog-dim);font-size:12px;">Nog geen velden toegevoegd.</span>`;
+}
+function addEmbedField(){
+  const name = document.getElementById("embedFieldName").value.trim();
+  const value = document.getElementById("embedFieldValue").value.trim();
+  if (!name || !value) { showToast("Vul zowel een naam als een waarde in.", "error"); return; }
+  if (embedFields.length >= 25) { showToast("Maximaal 25 velden (Discord-limiet).", "error"); return; }
+  embedFields.push({ name, value, inline: false });
+  document.getElementById("embedFieldName").value = "";
+  document.getElementById("embedFieldValue").value = "";
+  renderEmbedFields();
+}
+function removeEmbedField(i){
+  embedFields.splice(i, 1);
+  renderEmbedFields();
 }
 
 async function saveCommand(){
@@ -409,16 +508,43 @@ async function saveCommand(){
   const cooldown = document.getElementById("cmdCooldown").value.trim();
   const adminOnly = document.getElementById("cmdAdminSwitch").classList.contains("on");
   const body = { name, description, cooldown, adminOnly };
-  if (cmdMode === "simple") body.response = document.getElementById("cmdResponse").value.trim();
-  else body.code = document.getElementById("cmdCode").value;
+
+  if (cmdMode === "simple") {
+    body.response = document.getElementById("cmdResponse").value.trim();
+  } else if (cmdMode === "code") {
+    body.code = document.getElementById("cmdCode").value;
+  } else if (cmdMode === "embed") {
+    const rawJson = document.getElementById("embedRawJson").value.trim();
+    if (rawJson) {
+      try {
+        body.embed = JSON.parse(rawJson);
+      } catch (err) {
+        document.getElementById("cmdError").textContent = "Ongeldige JSON: " + err.message;
+        return;
+      }
+    } else {
+      body.embed = {
+        title: document.getElementById("embedTitle").value.trim() || undefined,
+        description: document.getElementById("embedDescription").value.trim() || undefined,
+        color: document.getElementById("embedColor").value || undefined,
+        image: document.getElementById("embedImage").value.trim() ? { url: document.getElementById("embedImage").value.trim() } : undefined,
+        thumbnail: document.getElementById("embedThumbnail").value.trim() ? { url: document.getElementById("embedThumbnail").value.trim() } : undefined,
+        author: document.getElementById("embedAuthor").value.trim() ? { name: document.getElementById("embedAuthor").value.trim() } : undefined,
+        footer: document.getElementById("embedFooter").value.trim() ? { text: document.getElementById("embedFooter").value.trim() } : undefined,
+        fields: embedFields.length ? embedFields : undefined,
+      };
+    }
+    const extra = document.getElementById("embedExtraContent").value.trim();
+    if (extra) body.response = extra;
+  }
 
   try {
     if (editingCommandId) {
       await api(`/api/bots/${selectedBotId}/commands/${editingCommandId}`, { method: "PUT", body: JSON.stringify(body) });
-      showToast(name + " bijgewerkt — herstart de bot om het te zien.");
+      showToast(name + " bijgewerkt — herstart de bot om het te zien.", "success");
     } else {
       await api(`/api/bots/${selectedBotId}/commands`, { method: "POST", body: JSON.stringify(body) });
-      showToast(name + " opgeslagen — herstart de bot om het te zien.");
+      showToast(name + " opgeslagen — herstart de bot om het te zien.", "success");
     }
     document.getElementById("cmdError").textContent = "";
     cancelEdit();

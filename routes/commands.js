@@ -33,14 +33,25 @@ function validateAndNormalize(body) {
   if (RESERVED_NAMES.includes(bare)) {
     return { error: `"${bare}" is al een ingebouwd command (zie tab Modules) en kan niet als custom command gebruikt worden.` };
   }
-  if (!body.response && !body.code) {
-    return { error: "Vul in wat de bot moet doen (reactie of eigen code)." };
+  let embed = null;
+  if (body.embed && typeof body.embed === "object") {
+    if (JSON.stringify(body.embed).length > 5800) {
+      return { error: "De embed is te groot (Discord staat max. ~6000 tekens toe)." };
+    }
+    if (!body.embed.title && !body.embed.description && !(body.embed.fields || []).length) {
+      return { error: "Vul minstens een titel, omschrijving of veld in voor de embed." };
+    }
+    embed = body.embed;
+  }
+  if (!body.response && !body.code && !embed) {
+    return { error: "Vul in wat de bot moet doen (reactie, eigen code, of een embed)." };
   }
   return {
     name: bare,
     description: (body.description || "").slice(0, 100),
     response: body.response || null,
     code: body.code || null,
+    embed,
     cooldown: Number(body.cooldown) || 0,
     adminOnly: !!body.adminOnly,
   };

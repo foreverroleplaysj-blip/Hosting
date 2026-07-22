@@ -529,7 +529,15 @@ async function cmdCustom(interaction, name) {
     return interaction.reply({ content: "Alleen admins mogen dit command gebruiken.", ephemeral: true });
   }
 
-  if (cmd.code) {
+  if (cmd.embed) {
+    try {
+      const e = buildEmbedFromSpec(cmd.embed);
+      await interaction.reply({ content: cmd.response || undefined, embeds: [e] });
+    } catch (err) {
+      send({ type: "log", message: `Embed-fout in /${cmd.name}: ${err.message}` });
+      await interaction.reply({ content: "Er ging iets mis bij het opbouwen van de embed. Check de instellingen bij dit command.", ephemeral: true });
+    }
+  } else if (cmd.code) {
     // Beperkte VM-sandbox met timeout. Zie README voor veiligheidsnotitie: dit is
     // geen volledige isolatie tegen moedwillig kwaadaardige code.
     const sandbox = {
@@ -546,6 +554,31 @@ async function cmdCustom(interaction, name) {
   } else {
     await interaction.reply({ content: cmd.response || "..." });
   }
+}
+
+// Zet een door de gebruiker opgeslagen embed-spec (via de website gebouwd, of als
+// eigen JSON geplakt — zelfde vorm als een normale Discord-embed) om naar een echte
+// EmbedBuilder die discord.js kan versturen.
+function buildEmbedFromSpec(spec) {
+  const e = new EmbedBuilder();
+  if (spec.title) e.setTitle(String(spec.title).slice(0, 256));
+  if (spec.description) e.setDescription(String(spec.description).slice(0, 4096));
+  if (spec.color) e.setColor(spec.color);
+  if (spec.url) e.setURL(spec.url);
+  if (spec.image?.url) e.setImage(spec.image.url);
+  if (spec.thumbnail?.url) e.setThumbnail(spec.thumbnail.url);
+  if (spec.author?.name) e.setAuthor({ name: String(spec.author.name).slice(0, 256), iconURL: spec.author.icon_url || spec.author.iconURL });
+  if (spec.footer?.text) e.setFooter({ text: String(spec.footer.text).slice(0, 2048), iconURL: spec.footer.icon_url || spec.footer.iconURL });
+  if (Array.isArray(spec.fields) && spec.fields.length) {
+    e.addFields(
+      spec.fields.slice(0, 25).map((f) => ({
+        name: String(f.name || "\u200b").slice(0, 256),
+        value: String(f.value || "\u200b").slice(0, 1024),
+        inline: !!f.inline,
+      }))
+    );
+  }
+  return e;
 }
 
 /* ==================== BUTTON INTERACTIES ==================== */

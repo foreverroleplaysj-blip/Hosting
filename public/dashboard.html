@@ -169,7 +169,8 @@ async function loadBots(){
         <button class="icon-btn" ${bot.status==="offline"?"disabled":""} onclick="botAction('${bot.id}','stop')">⏹ Stop</button>
         <button class="icon-btn" ${bot.status==="offline"?"disabled":""} onclick="botAction('${bot.id}','restart')">🔄 Herstart</button>
         <button class="icon-btn manage" onclick="location.href='/commands.html?bot=${bot.id}'">⚙ Beheren</button>
-      </div>`;
+      </div>
+      ${bot.isOwner ? `<button class="icon-btn stop" style="width:100%;" onclick="deleteBot('${bot.id}','${bot.name.replace(/'/g,"&apos;")}')">🗑 Bot verwijderen</button>` : ""}`;
     grid.appendChild(card);
   });
   const addCard = document.createElement("button");
@@ -184,6 +185,16 @@ async function botAction(id, action){
     await api(`/api/bots/${id}/${action}`, { method: "POST" });
     showToast(`Commando "${action}" verstuurd`);
     setTimeout(loadBots, 600);
+  } catch (err) { showToast(err.message); }
+}
+
+async function deleteBot(id, name){
+  const sure = confirm(`Weet je zeker dat je "${name}" wilt verwijderen? Dit stopt de bot en verwijdert al zijn commands, modules en instellingen. Dit kan niet ongedaan gemaakt worden.`);
+  if (!sure) return;
+  try {
+    await api(`/api/bots/${id}`, { method: "DELETE" });
+    showToast(`${name} is verwijderd.`);
+    loadBots();
   } catch (err) { showToast(err.message); }
 }
 

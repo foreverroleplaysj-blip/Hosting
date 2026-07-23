@@ -223,7 +223,55 @@ keer opnieuw in te loggen.
   leeg/weg voor het standaard-ID). **Let op:** geef dit alleen aan Discord-ID's die je
   volledig vertrouwt — deze persoon kan alles op je hele installatie beheren.
 
-## 10. Command Builder gebruiken
+## 10. Weer nieuw: echte eigen code, opties/parameters, webhooks, profielmenu
+
+- **Command-opties (parameters)**: bij elk custom command kun je nu parameters
+  toevoegen (tekst, getal, aan/uit, gebruiker, kanaal, rol — verplicht of optioneel).
+  Discord toont deze als invulvelden zodra iemand het command typt, bijv.
+  `/kick gebruiker:@Piet reden:spam`.
+- **Veel rijkere "Eigen code"-sandbox**: naast `interaction.reply()` kun je nu ook:
+  - `interaction.options.getString("naam")` (ook getInteger/getNumber/getBoolean/getUser/getChannel/getRole)
+  - `interaction.followUp()`, `.editReply()`, `.deferReply()`, `.deleteReply()`
+  - `interaction.member` (rollen, isAdmin, isStaff), `interaction.guild`, `interaction.channel`
+  - Nog steeds in een vm-sandbox met timeout — zie de veiligheidsnotitie verderop.
+  - Als je vergeet de commandnaam ergens in je code te zetten, zet BotCloud er
+    automatisch `// /jouwcommand` bovenaan bij (puur ter herinnering/overzicht).
+- **Discord Webhook** (tab Logs): vul je eigen webhook-URL in en start/stop/herstart-
+  meldingen komen daar ook binnen, naast (of in plaats van) het logkanaal. **Wij vullen
+  dit nooit voor je in** — een webhook-URL is een geheime link, net als een wachtwoord;
+  wie 'm heeft kan berichten in dat kanaal posten. Maak 'm aan via Server-instellingen →
+  Integraties → Webhooks in Discord zelf, en plak 'm alleen in je eigen `.env`/dashboard.
+- **Profielmenu**: klik rechtsboven op je naam/avatar voor een dropdown met je Discord-
+  gegevens en de uitlog-knop (in plaats van een aparte knop).
+- **"Iedereens bots" / "Alleen mijn bots"** schakelaar op het dashboard — alleen
+  zichtbaar voor super-admins (zie sectie 9). Zo kun je zelf kiezen of je alles ziet of
+  alleen je eigen bots.
+- **Bot verwijderen** kan nu ook via een knop op het dashboard (alleen zichtbaar voor de
+  eigenaar), met een bevestigingsvraag.
+- **Embed-builder** voor custom commands (tab "Embed" in de Command Builder): bouw een
+  embed met formuliervelden, of plak je eigen embed-JSON direct.
+
+## 11. Admin-webhook: melding bij nieuwe gebruikers en nieuwe bots
+
+Los van de per-bot webhook (tab Logs, hierboven) kun je ook een webhook instellen
+voor **jezelf als eigenaar van deze installatie**. Die krijgt een melding bij:
+
+- **Een nieuwe gebruiker** die voor het eerst inlogt via Discord (niet bij elke login
+  — alleen de allereerste keer).
+- **Een nieuwe bot** die iemand toevoegt en activeert.
+
+Dit staat expres **niet** in de website zelf (dan zou elke gebruiker 'm kunnen zien of
+aanpassen), maar in je `.env`-bestand:
+
+```
+ADMIN_WEBHOOK_URL=https://discord.com/api/webhooks/jouw-eigen-webhook
+```
+
+Maak de webhook aan via Server-instellingen → Integraties → Webhooks in je eigen
+Discord-server, en plak de URL alleen in `.env` — nooit in code die je deelt of naar
+GitHub upload (zet 'm net als je Client Secret nooit in een publieke repository).
+
+## 12. Command Builder gebruiken
 
 - **Simpele reactie**: vul een command-naam (`/regels`), beschrijving, cooldown en
   een vaste tekst in. De bot antwoordt exact met die tekst.

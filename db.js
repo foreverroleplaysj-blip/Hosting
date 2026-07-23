@@ -107,6 +107,7 @@ function addBot(bot) {
     tokenEncrypted: encrypt(bot.token),
     logGuildId: null,
     logChannelId: null,
+    webhookUrl: null,
     staffGuildId: null,
     staffRoleIds: [],
     modules: JSON.parse(JSON.stringify(DEFAULT_MODULES)),
@@ -116,9 +117,9 @@ function addBot(bot) {
   save(data);
   return data.bots[id];
 }
-function getBotsForUser(userId) {
+function getBotsForUser(userId, { onlyMine = false } = {}) {
   const data = loadRaw();
-  if (isSuperAdmin(userId)) return Object.values(data.bots);
+  if (isSuperAdmin(userId) && !onlyMine) return Object.values(data.bots);
   return Object.values(data.bots).filter(
     (b) => b.ownerId === userId || (b.collaborators || []).includes(userId)
   );
@@ -162,6 +163,18 @@ function setLogChannel(id, { guildId, channelId }) {
   if (!data.bots[id]) return null;
   data.bots[id].logGuildId = guildId || null;
   data.bots[id].logChannelId = channelId || null;
+  save(data);
+  return data.bots[id];
+}
+
+function setWebhookUrl(id, webhookUrl) {
+  const data = loadRaw();
+  if (!data.bots[id]) return null;
+  const clean = (webhookUrl || "").trim();
+  if (clean && !/^https:\/\/discord(app)?\.com\/api\/webhooks\//.test(clean)) {
+    throw new Error("Dit ziet er niet uit als een geldige Discord webhook-URL.");
+  }
+  data.bots[id].webhookUrl = clean || null;
   save(data);
   return data.bots[id];
 }
@@ -240,6 +253,7 @@ module.exports = {
   getBotToken,
   deleteBot,
   setLogChannel,
+  setWebhookUrl,
   setStaffRoles,
   setModules,
   addCollaborator,

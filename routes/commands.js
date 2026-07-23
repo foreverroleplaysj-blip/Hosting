@@ -26,6 +26,8 @@ function normalizeName(raw) {
     .replace(/[^a-z0-9_-]/g, "");
 }
 
+const VALID_OPTION_TYPES = ["string", "integer", "number", "boolean", "user", "channel", "role"];
+
 function validateAndNormalize(body) {
   const bare = normalizeName(body.name);
   if (!bare) return { error: "Geef je command een naam, bijv. \"regels\"." };
@@ -46,12 +48,30 @@ function validateAndNormalize(body) {
   if (!body.response && !body.code && !embed) {
     return { error: "Vul in wat de bot moet doen (reactie, eigen code, of een embed)." };
   }
+
+  const options = [];
+  const seenNames = new Set();
+  for (const raw of (body.options || []).slice(0, 25)) {
+    const optName = normalizeName(raw.name);
+    if (!optName) continue;
+    if (seenNames.has(optName)) return { error: `Optie-naam "${optName}" komt dubbel voor.` };
+    seenNames.add(optName);
+    const type = VALID_OPTION_TYPES.includes(raw.type) ? raw.type : "string";
+    options.push({
+      name: optName,
+      description: (raw.description || "Optie").slice(0, 100),
+      type,
+      required: !!raw.required,
+    });
+  }
+
   return {
     name: bare,
     description: (body.description || "").slice(0, 100),
     response: body.response || null,
     code: body.code || null,
     embed,
+    options,
     cooldown: Number(body.cooldown) || 0,
     adminOnly: !!body.adminOnly,
   };

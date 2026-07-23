@@ -13,12 +13,19 @@
     <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="12" r="1.6" fill="#fff"/></svg><div class="brand-dot"></div></div>
     Notspayy's Hosting
   </div>
-  <div style="display:flex;align-items:center;gap:10px;">
-    <div class="user-chip">
+  <div class="user-menu">
+    <button class="user-chip" onclick="toggleUserMenu()" style="cursor:pointer;border:1px solid var(--line);">
       <div class="avatar" id="chipAvatar" style="background:#5865F2;">?</div>
       <span id="chipName">…</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:2px;color:var(--fog-dim);"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="user-dropdown" id="userDropdown">
+      <div class="user-dropdown-head">
+        <div class="avatar" id="dropdownAvatar" style="background:#5865F2;width:38px;height:38px;font-size:13px;">?</div>
+        <div><div id="dropdownName" style="font-weight:600;font-size:13.5px;">…</div><div id="dropdownId" style="font-family:var(--font-mono);font-size:11px;color:var(--fog-dim);"></div></div>
+      </div>
+      <button class="side-btn" style="width:100%;" onclick="logout()">🚪 Uitloggen</button>
     </div>
-    <button class="logout-btn" onclick="logout()">Uitloggen</button>
   </div>
 </nav>
 
@@ -45,6 +52,10 @@
   <main class="main">
     <div class="main-head">
       <div><h1>Mijn bots</h1><p>Beheer, start en stop je Discord bots.</p></div>
+      <div class="mode-tabs" id="scopeToggle" style="display:none;">
+        <button class="mode-tab active" id="scopeAll" onclick="setScope('all')">Iedereens bots</button>
+        <button class="mode-tab" id="scopeMine" onclick="setScope('mine')">Alleen mijn bots</button>
+      </div>
     </div>
     <div class="bot-grid" id="botGrid"></div>
   </main>
@@ -116,6 +127,9 @@ async function loadMe() {
     const url = avatarUrl(user);
     document.getElementById("chipAvatar").innerHTML = `<img src="${url}" alt="">`;
     document.getElementById("sideAvatar").innerHTML = `<img src="${url}" alt="">`;
+    document.getElementById("dropdownAvatar").innerHTML = `<img src="${url}" alt="">`;
+    document.getElementById("dropdownName").textContent = user.username;
+    document.getElementById("dropdownId").textContent = "ID: " + user.id;
 
     const guildList = document.getElementById("guildList");
     guildList.innerHTML = guilds.map(g => `
@@ -144,8 +158,24 @@ function fmtRam(bytes){
   return (bytes/1024/1024).toFixed(0) + " MB";
 }
 
+let botScope = "all";
+function setScope(scope){
+  botScope = scope;
+  document.getElementById("scopeAll").classList.toggle("active", scope === "all");
+  document.getElementById("scopeMine").classList.toggle("active", scope === "mine");
+  loadBots();
+}
+function toggleUserMenu(){
+  document.getElementById("userDropdown").classList.toggle("open");
+}
+document.addEventListener("click", (e) => {
+  const menu = document.querySelector(".user-menu");
+  if (menu && !menu.contains(e.target)) document.getElementById("userDropdown")?.classList.remove("open");
+});
+
 async function loadBots(){
-  const { bots } = await api("/api/bots");
+  const { bots, isSuperAdmin } = await api(`/api/bots?scope=${botScope === "mine" ? "mine" : "all"}`);
+  if (isSuperAdmin) document.getElementById("scopeToggle").style.display = "flex";
   const grid = document.getElementById("botGrid");
   grid.innerHTML = "";
   bots.forEach(bot => {

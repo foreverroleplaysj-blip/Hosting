@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const discord = require("../discordApi");
 const db = require("../db");
+const { notifyAdmin } = require("../adminWebhook");
 
 router.get("/discord", (req, res) => {
   res.redirect(discord.getAuthorizeUrl());
@@ -15,12 +16,18 @@ router.get("/discord/callback", async (req, res) => {
     const profile = await discord.getCurrentUser(tokenData.access_token);
     const guilds = await discord.getCurrentUserGuilds(tokenData.access_token);
 
+    const isNewUser = !db.getUser(profile.id);
+
     db.upsertUser({
       id: profile.id,
       username: profile.username,
       discriminator: profile.discriminator,
       avatar: profile.avatar,
     });
+
+    if (isNewUser) {
+      notifyAdmin(`🆕 Nieuwe gebruiker: **${profile.username}** (ID: \`${profile.id}\`) heeft voor het eerst ingelogd.`);
+    }
 
     req.session.user = {
       id: profile.id,

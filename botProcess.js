@@ -77,6 +77,19 @@ function buildCommandList() {
     const b = new SlashCommandBuilder()
       .setName(c.name)
       .setDescription((c.description || "Aangepast command").slice(0, 100));
+    const sortedOptions = [...(c.options || [])].sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
+    for (const opt of sortedOptions) {
+      const applyBase = (o) => o.setName(opt.name).setDescription(opt.description || "Optie").setRequired(!!opt.required);
+      switch (opt.type) {
+        case "integer": b.addIntegerOption((o) => applyBase(o)); break;
+        case "number": b.addNumberOption((o) => applyBase(o)); break;
+        case "boolean": b.addBooleanOption((o) => applyBase(o)); break;
+        case "user": b.addUserOption((o) => applyBase(o)); break;
+        case "channel": b.addChannelOption((o) => applyBase(o)); break;
+        case "role": b.addRoleOption((o) => applyBase(o)); break;
+        default: b.addStringOption((o) => applyBase(o));
+      }
+    }
     builders.push(b.toJSON());
   }
 
@@ -538,13 +551,53 @@ async function cmdCustom(interaction, name) {
       await interaction.reply({ content: "Er ging iets mis bij het opbouwen van de embed. Check de instellingen bij dit command.", ephemeral: true });
     }
   } else if (cmd.code) {
-    // Beperkte VM-sandbox met timeout. Zie README voor veiligheidsnotitie: dit is
-    // geen volledige isolatie tegen moedwillig kwaadaardige code.
+    // Ruimere VM-sandbox met timeout. Zie README voor veiligheidsnotitie: dit is
+    // geen volledige isolatie tegen moedwillig kwaadaardige code — bedoeld voor je
+    // EIGEN commands, niet voor het draaien van code van mensen die je niet vertrouwt.
     const sandbox = {
       interaction: {
         reply: (opts) => interaction.reply(opts),
-        user: { id: interaction.user.id, username: interaction.user.username },
+        followUp: (opts) => interaction.followUp(opts),
+        editReply: (opts) => interaction.editReply(opts),
+        deferReply: (opts) => interaction.deferReply(opts),
+        deleteReply: () => interaction.deleteReply(),
         commandName: interaction.commandName,
+        user: {
+          id: interaction.user.id,
+          username: interaction.user.username,
+          tag: interaction.user.tag,
+          avatarUrl: interaction.user.displayAvatarURL(),
+        },
+        member: interaction.member
+          ? {
+              nickname: interaction.member.nickname,
+              roleIds: [...interaction.member.roles.cache.keys()],
+              isAdmin: isAdmin(interaction),
+              isStaff: isStaff(interaction),
+            }
+          : null,
+        guild: interaction.guild
+          ? { id: interaction.guild.id, name: interaction.guild.name, memberCount: interaction.guild.memberCount }
+          : null,
+        channel: interaction.channel ? { id: interaction.channel.id, name: interaction.channel.name } : null,
+        options: {
+          getString: (n) => interaction.options.getString(n),
+          getInteger: (n) => interaction.options.getInteger(n),
+          getNumber: (n) => interaction.options.getNumber(n),
+          getBoolean: (n) => interaction.options.getBoolean(n),
+          getUser: (n) => {
+            const u = interaction.options.getUser(n);
+            return u ? { id: u.id, username: u.username, tag: u.tag, avatarUrl: u.displayAvatarURL() } : null;
+          },
+          getChannel: (n) => {
+            const c = interaction.options.getChannel(n);
+            return c ? { id: c.id, name: c.name } : null;
+          },
+          getRole: (n) => {
+            const r = interaction.options.getRole(n);
+            return r ? { id: r.id, name: r.name } : null;
+          },
+        },
       },
       console: { log: (...args) => send({ type: "log", message: args.join(" ") }) },
     };

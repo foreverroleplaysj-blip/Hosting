@@ -13,9 +13,20 @@
     <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="12" r="1.6" fill="#fff"/></svg><div class="brand-dot"></div></div>
     Notspayy's Hosting
   </div>
-  <div style="display:flex;align-items:center;gap:10px;">
-    <div class="user-chip"><div class="avatar" id="chipAvatar" style="background:#5865F2;">?</div><span id="chipName">…</span></div>
-    <button class="logout-btn" onclick="logout()">Uitloggen</button>
+  <div class="user-menu">
+    <button class="user-chip" onclick="toggleUserMenu()" style="cursor:pointer;border:1px solid var(--line);">
+      <div class="avatar" id="chipAvatar" style="background:#5865F2;">?</div>
+      <span id="chipName">…</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:2px;color:var(--fog-dim);"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="user-dropdown" id="userDropdown">
+      <div class="user-dropdown-head">
+        <div class="avatar" id="dropdownAvatar" style="background:#5865F2;width:38px;height:38px;font-size:13px;">?</div>
+        <div><div id="dropdownName" style="font-weight:600;font-size:13.5px;">…</div><div id="dropdownId" style="font-family:var(--font-mono);font-size:11px;color:var(--fog-dim);"></div></div>
+      </div>
+      <button class="side-btn" style="width:100%;" onclick="location.href='/dashboard.html'">🤖 Mijn bots</button>
+      <button class="side-btn" style="width:100%;" onclick="logout()">🚪 Uitloggen</button>
+    </div>
   </div>
 </nav>
 
@@ -66,6 +77,28 @@
             <div class="field"><label>Cooldown (seconden)</label><input type="text" id="cmdCooldown" placeholder="0" value="3"></div>
           </div>
           <div class="field"><label>Beschrijving</label><input type="text" id="cmdDesc" placeholder="Toont de serverregels"></div>
+
+          <div class="field">
+            <label>Opties / parameters (wat iemand meegeeft bij het command, bijv. /kick <b>gebruiker</b>)</label>
+            <div id="cmdOptionsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+            <div class="inline-form" style="flex-wrap:wrap;">
+              <input type="text" id="optName" placeholder="naam, bijv. gebruiker" style="flex:1;min-width:120px;">
+              <select id="optType" style="flex:1;min-width:120px;background:var(--surface-2);border:1px solid var(--line);color:var(--text);padding:11px 12px;border-radius:9px;font-size:13px;">
+                <option value="string">Tekst</option>
+                <option value="integer">Geheel getal</option>
+                <option value="number">Getal (decimaal)</option>
+                <option value="boolean">Aan/uit (ja-nee)</option>
+                <option value="user">Discord-gebruiker</option>
+                <option value="channel">Kanaal</option>
+                <option value="role">Rol</option>
+              </select>
+              <input type="text" id="optDesc" placeholder="Omschrijving" style="flex:1;min-width:140px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--fog);white-space:nowrap;"><input type="checkbox" id="optRequired"> verplicht</label>
+              <button class="small-btn" type="button" onclick="addCmdOption()">+ Optie</button>
+            </div>
+            <div class="hint">In "Eigen code" gebruik je deze met <code>interaction.options.getString("naam")</code> (of getInteger/getUser/enz.).</div>
+          </div>
+
           <div class="field" id="simpleResponseField">
             <label>Reactie</label>
             <textarea id="cmdResponse" placeholder="Bekijk onze regels in #regels!"></textarea>
@@ -272,6 +305,18 @@
           <button class="small-btn" onclick="saveLogChannel()">Logkanaal opslaan</button>
         </div>
 
+        <div class="builder-panel" style="margin-bottom:20px;">
+          <h3 class="section-title">Discord Webhook</h3>
+          <p class="section-sub">Extra optie naast (of in plaats van) het logkanaal: stuur dezelfde start/stop/herstart-meldingen naar een webhook-URL. Handig als je al een webhook hebt draaien in een ander kanaal of systeem.</p>
+          <div class="field">
+            <label>Webhook-URL</label>
+            <input type="text" id="webhookUrlInput" placeholder="https://discord.com/api/webhooks/…">
+            <div class="hint">Maak je eigen webhook aan via Server-instellingen → Integraties → Webhooks in Discord. Deel deze link met niemand — wie 'm heeft, kan berichten in dat kanaal sturen.</div>
+          </div>
+          <p class="error-text" id="webhookError"></p>
+          <button class="small-btn" onclick="saveWebhookUrl()">Webhook opslaan</button>
+        </div>
+
         <div class="builder-panel">
           <h3 class="section-title">Recente activiteit</h3>
           <p class="section-sub">Live console-output van het bot-proces (ververst elke keer dat je hier komt).</p>
@@ -330,8 +375,18 @@ async function loadMe(){
     const { user } = await api("/auth/me");
     document.getElementById("chipName").textContent = user.username;
     document.getElementById("chipAvatar").innerHTML = `<img src="${avatarUrl(user)}" alt="">`;
+    document.getElementById("dropdownAvatar").innerHTML = `<img src="${avatarUrl(user)}" alt="">`;
+    document.getElementById("dropdownName").textContent = user.username;
+    document.getElementById("dropdownId").textContent = "ID: " + user.id;
   } catch { location.href = "/"; }
 }
+function toggleUserMenu(){
+  document.getElementById("userDropdown").classList.toggle("open");
+}
+document.addEventListener("click", (e) => {
+  const menu = document.querySelector(".user-menu");
+  if (menu && !menu.contains(e.target)) document.getElementById("userDropdown")?.classList.remove("open");
+});
 
 /* ---------------- page tabs ---------------- */
 function setPageTab(name){
@@ -413,6 +468,8 @@ function editCommand(c){
   document.getElementById("cmdDesc").value = c.description || "";
   document.getElementById("cmdCooldown").value = c.cooldown || 0;
   document.getElementById("cmdAdminSwitch").classList.toggle("on", !!c.adminOnly);
+  cmdOptions = [...(c.options || [])];
+  renderCmdOptions();
   if (c.embed) {
     setCmdMode("embed");
     document.getElementById("embedTitle").value = c.embed.title || "";
@@ -445,6 +502,8 @@ function cancelEdit(){
   document.getElementById("cmdResponse").value = "";
   document.getElementById("cmdCooldown").value = 3;
   document.getElementById("cmdAdminSwitch").classList.remove("on");
+  cmdOptions = [];
+  renderCmdOptions();
   document.getElementById("embedTitle").value = "";
   document.getElementById("embedDescription").value = "";
   document.getElementById("embedColor").value = "#7c8cf8";
@@ -502,17 +561,65 @@ function removeEmbedField(i){
   renderEmbedFields();
 }
 
+/* ---- command-opties (parameters) ---- */
+let cmdOptions = [];
+const OPT_TYPE_LABELS = { string:"Tekst", integer:"Geheel getal", number:"Getal", boolean:"Aan/uit", user:"Gebruiker", channel:"Kanaal", role:"Rol" };
+function renderCmdOptions(){
+  const el = document.getElementById("cmdOptionsList");
+  el.innerHTML = cmdOptions.length ? cmdOptions.map((o, i) => `
+    <div class="ticket-cat-row">
+      <span class="cat-label" style="min-width:auto;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        <b>${o.name}</b> · ${OPT_TYPE_LABELS[o.type] || o.type}${o.required ? " · verplicht" : ""}${o.description ? " — " + o.description : ""}
+      </span>
+      <button onclick="removeCmdOption(${i})" type="button">✕</button>
+    </div>
+  `).join("") : `<span style="color:var(--fog-dim);font-size:12px;">Nog geen opties toegevoegd.</span>`;
+}
+function addCmdOption(){
+  const name = document.getElementById("optName").value.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9_-]/g, "");
+  const type = document.getElementById("optType").value;
+  const description = document.getElementById("optDesc").value.trim();
+  const required = document.getElementById("optRequired").checked;
+  if (!name) { showToast("Geef de optie een naam.", "error"); return; }
+  if (cmdOptions.some(o => o.name === name)) { showToast("Die optie-naam bestaat al.", "error"); return; }
+  if (cmdOptions.length >= 25) { showToast("Maximaal 25 opties (Discord-limiet).", "error"); return; }
+  cmdOptions.push({ name, type, description, required });
+  document.getElementById("optName").value = "";
+  document.getElementById("optDesc").value = "";
+  document.getElementById("optRequired").checked = false;
+  renderCmdOptions();
+}
+function removeCmdOption(i){
+  cmdOptions.splice(i, 1);
+  renderCmdOptions();
+}
+
+/* ---- herinnering: zet de commandnaam bovenaan je eigen code, voor duidelijkheid ---- */
+function ensureNameInCode(code, name) {
+  const marker = `// /${name}`;
+  const stripped = code.replace(/^\/\/ \/[a-z0-9_-]+\s*\n/i, ""); // oude marker-regel eruit
+  return `${marker}\n${stripped}`;
+}
+
 async function saveCommand(){
   const name = document.getElementById("cmdName").value.trim();
   const description = document.getElementById("cmdDesc").value.trim();
   const cooldown = document.getElementById("cmdCooldown").value.trim();
   const adminOnly = document.getElementById("cmdAdminSwitch").classList.contains("on");
-  const body = { name, description, cooldown, adminOnly };
+  const body = { name, description, cooldown, adminOnly, options: cmdOptions };
 
   if (cmdMode === "simple") {
     body.response = document.getElementById("cmdResponse").value.trim();
   } else if (cmdMode === "code") {
-    body.code = document.getElementById("cmdCode").value;
+    const rawCode = document.getElementById("cmdCode").value;
+    const bareName = name.trim().toLowerCase().replace(/^\/+/, "").replace(/\s+/g, "-").replace(/[^a-z0-9_-]/g, "");
+    if (bareName && !rawCode.toLowerCase().includes(`/${bareName}`)) {
+      body.code = ensureNameInCode(rawCode, bareName);
+      document.getElementById("cmdCode").value = body.code;
+      showToast(`Commandnaam (// /${bareName}) is bovenaan je code gezet.`, "info");
+    } else {
+      body.code = rawCode;
+    }
   } else if (cmdMode === "embed") {
     const rawJson = document.getElementById("embedRawJson").value.trim();
     if (rawJson) {
@@ -743,6 +850,19 @@ async function loadLogsTabData(){
 
   document.getElementById("liveLog").textContent = (currentBotDetail.log && currentBotDetail.log.length)
     ? currentBotDetail.log.join("\n") : "Nog geen activiteit sinds de laatste start.";
+
+  document.getElementById("webhookUrlInput").value = currentBotDetail.webhookUrl || "";
+  document.getElementById("webhookError").textContent = "";
+}
+async function saveWebhookUrl(){
+  const webhookUrl = document.getElementById("webhookUrlInput").value.trim();
+  try {
+    await api(`/api/bots/${selectedBotId}/webhook`, { method: "POST", body: JSON.stringify({ webhookUrl }) });
+    document.getElementById("webhookError").textContent = "";
+    showToast(webhookUrl ? "Webhook opgeslagen." : "Webhook verwijderd.", "success");
+  } catch (err) {
+    document.getElementById("webhookError").textContent = err.message;
+  }
 }
 async function onLogGuildChange(){
   const guildId = document.getElementById("logGuild").value;

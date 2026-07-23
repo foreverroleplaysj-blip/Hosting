@@ -40,6 +40,12 @@ button{font-family:inherit;cursor:pointer;}
   font-family:var(--font-mono);font-size:11px;font-weight:600;color:#fff;}
 .logout-btn{background:none;border:1px solid var(--line);color:var(--fog);padding:8px 12px;border-radius:9px;font-size:12.5px;}
 .logout-btn:hover{color:var(--text);border-color:var(--fog-dim);}
+.user-menu{position:relative;}
+.user-dropdown{position:absolute;top:calc(100% + 8px);right:0;width:220px;background:var(--surface);
+  border:1px solid var(--line);border-radius:13px;padding:12px;box-shadow:0 20px 45px -20px rgba(0,0,0,.65);
+  display:none;flex-direction:column;gap:10px;z-index:60;}
+.user-dropdown.open{display:flex;}
+.user-dropdown-head{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--line-soft);}
 
 .hero{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:96px 32px 64px;}
 .eyebrow{font-family:var(--font-mono);font-size:12px;color:var(--pulse);letter-spacing:.14em;text-transform:uppercase;

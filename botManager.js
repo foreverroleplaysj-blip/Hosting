@@ -39,20 +39,36 @@ function pushLog(entry, message) {
   if (entry.log.length > MAX_LOG_LINES) entry.log.shift();
 }
 
-// Stuurt een bericht naar het ingestelde logkanaal van deze bot (indien ingesteld).
-// Werkt onafhankelijk van of het bot-proces zelf online is.
+// Stuurt een bericht naar het ingestelde logkanaal (via de bot zelf) EN/OF naar een
+// ingestelde Discord webhook-URL. Werkt onafhankelijk van of het bot-proces zelf
+// online is — dit is een losse REST-call, geen gateway-verbinding nodig.
 async function notifyLogChannel(botId, text) {
-  try {
-    const bot = db.getBot(botId);
-    if (!bot?.logChannelId) return;
-    const token = db.getBotToken(botId);
-    await fetch(`${DISCORD_API}/channels/${bot.logChannelId}/messages`, {
-      method: "POST",
-      headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text }),
-    });
-  } catch {
-    // logkanaal-melding is best-effort; een mislukte melding mag de bot niet blokkeren
+  const bot = db.getBot(botId);
+  if (!bot) return;
+
+  if (bot.logChannelId) {
+    try {
+      const token = db.getBotToken(botId);
+      await fetch(`${DISCORD_API}/channels/${bot.logChannelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text }),
+      });
+    } catch {
+      // best-effort; een mislukte melding mag de bot niet blokkeren
+    }
+  }
+
+  if (bot.webhookUrl) {
+    try {
+      await fetch(bot.webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text, username: bot.name ? `${bot.name} — Notspayy's Hosting` : "Notspayy's Hosting" }),
+      });
+    } catch {
+      // ook hier: best-effort
+    }
   }
 }
 

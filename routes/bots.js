@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../db");
 const discord = require("../discordApi");
 const botManager = require("../botManager");
+const { notifyAdmin } = require("../adminWebhook");
 
 function requireAuth(req, res, next) {
   if (!req.session.user) return res.status(401).json({ error: "Niet ingelogd." });
@@ -28,7 +29,8 @@ function initialsFor(name) {
 /* ---------------- lijst & basis CRUD ---------------- */
 
 router.get("/", requireAuth, (req, res) => {
-  const bots = db.getBotsForUser(req.session.user.id).map((b) => ({
+  const onlyMine = req.query.scope === "mine";
+  const bots = db.getBotsForUser(req.session.user.id, { onlyMine }).map((b) => ({
     id: b.id,
     name: b.name,
     color: b.color,
@@ -36,7 +38,7 @@ router.get("/", requireAuth, (req, res) => {
     isOwner: b.ownerId === req.session.user.id,
     ...botManager.getStatus(b.id),
   }));
-  res.json({ bots });
+  res.json({ bots, isSuperAdmin: db.isSuperAdmin(req.session.user.id) });
 });
 
 router.get("/:id", requireAuth, (req, res) => {
@@ -50,6 +52,7 @@ router.get("/:id", requireAuth, (req, res) => {
     isOwner: bot.ownerId === req.session.user.id,
     logGuildId: bot.logGuildId,
     logChannelId: bot.logChannelId,
+    webhookUrl: bot.webhookUrl,
     staffGuildId: bot.staffGuildId,
     staffRoleIds: bot.staffRoleIds,
     modules: bot.modules,
@@ -93,6 +96,7 @@ router.post("/activate", requireAuth, async (req, res) => {
     color: colorFor(discordBotId),
   });
   const result = botManager.startBot(bot.id);
+  notifyAdmin(`🤖 Nieuwe bot toegevoegd: **${name}** door **${req.session.user.username}** (ID: \`${req.session.user.id}\`).`);
   res.json({ ok: true, bot: { id: bot.id, name: bot.name }, started: result.ok });
 });
 
@@ -178,6 +182,17 @@ router.post("/:id/log-channel", requireAuth, (req, res) => {
   const { guildId, channelId } = req.body;
   const updated = db.setLogChannel(bot.id, { guildId, channelId });
   res.json({ ok: true, logGuildId: updated.logGuildId, logChannelId: updated.logChannelId });
+});
+
+router.post("/:id/webhook", requireAuth, (req, res) => {
+  const bot = accessibleBot(req, req.params.id);
+  if (!bot) return res.status(404).json({ error: "Bot niet gevonden." });
+  try {
+    const updated = db.setWebhookUrl(bot.id, req.body.webhookUrl);
+    res.json({ ok: true, webhookUrl: updated.webhookUrl });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 /* ---------------- staff-rollen ---------------- */
